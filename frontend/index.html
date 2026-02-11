@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+
+  <title>Faltantes Papelería</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2196f3">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Cámara -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+  :root {
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --text: #111;
+    --input: #ffffff;
+    --border: #ddd;
+    --btn: #2196f3;
+  }
+
+  body.dark {
+    --bg: #121212;
+    --card: #1e1e1e;
+    --text: #f1f1f1;
+    --input: #2a2a2a;
+    --border: #333;
+    --btn: #90caf9;
+  }
+
+  body {
+    font-family: system-ui, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 10px;
+    max-width: 420px;
+    margin: auto;
+  }
+
+  h2, h3 {
+    text-align: center;
+  }
+
+  #reader {
+    background: var(--card);
+    padding: 10px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  input, button {
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    font-size: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--input);
+    color: var(--text);
+  }
+
+  button {
+    background: var(--btn);
+    color: #000;
+    font-weight: bold;
+  }
+
+  #toggleTheme {
+    background: transparent;
+    border: none;
+    text-align: right;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  li {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  li:hover {
+    background: rgba(255,255,255,0.05);
+  }
+</style>
+
+
+<h2>📦 Faltantes Papelería</h2>
+
+<div id="reader"></div>
+
+<input id="codigo" placeholder="Código de barras">
+<input id="nombre" placeholder="Nombre del producto">
+<input id="piezas" type="number" placeholder="Piezas a comprar">
+
+<button onclick="guardar()">💾 Guardar</button>
+<button id="toggleTheme" onclick="toggleTheme()">🌙 Modo oscuro</button>
+
+<h3>🔍 Buscar producto</h3>
+<input id="buscar" placeholder="Buscar..." onkeyup="buscarNombre(this.value)">
+
+<ul id="lista"></ul>
+
+<script src="app.js"></script>
+</body>
+</html>
