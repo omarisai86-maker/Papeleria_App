@@ -1,131 +1,165 @@
-// // ================================
-// CONFIGURACIÓN
-// ================================
-const API = "https://papeleria-app-vf6w.onrender.com";
+// 🔥 CAMBIA ESTO POR TU URL DE RENDER
+const API_URL = "https://papeleria-app.onrender.com";
 
+// ===============================
+// 🎥 ESCANER QR / CÓDIGO DE BARRAS
+// ===============================
+function iniciarEscaner() {
+  const html5QrCode = new Html5Qrcode("reader");
 
-// ================================
-// ELEMENTOS
-// ================================
-const codigo = document.getElementById("codigo");
-const nombre = document.getElementById("nombre");
-const piezas = document.getElementById("piezas");
-const lista  = document.getElementById("lista");
-const reader = document.getElementById("reader");
-
-// ================================
-// ESCÁNER QR / BARRAS (SEGURO)
-// ================================
-if (reader) {
-  const scanner = new Html5Qrcode("reader");
-
-  scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    async (code) => {
-      codigo.value = code;
-
-      try {
-        const r = await fetch(`${API}/buscar_codigo/${code}`);
-        if (!r.ok) throw new Error("No encontrado");
-
-        const d = await r.json();
-
-        if (d && d.nombre) {
-          nombre.value = d.nombre;
-          piezas.value = d.piezas;
-        } else {
-          nombre.value = "";
-          piezas.value = 0;
+  Html5Qrcode.getCameras().then(devices => {
+    if (devices && devices.length) {
+      html5QrCode.start(
+        devices[0].id,
+        {
+          fps: 10,
+          qrbox: 250
+        },
+        codigo => {
+          document.getElementById("codigo").value = codigo;
+          html5QrCode.stop();
         }
-      } catch (err) {
-        console.warn("Producto no encontrado");
-        nombre.value = "";
-        piezas.value = 0;
-      }
+      );
     }
-  ).catch(err => {
-    console.error("Error al iniciar cámara:", err);
+  }).catch(err => {
+    console.log("Error cámara:", err);
   });
 }
 
-// ================================
-// GUARDAR PRODUCTO
-// ================================
-async function guardar() {
-  if (!codigo.value || !nombre.value) {
-    alert("⚠️ Completa código y nombre");
+iniciarEscaner();
+
+
+// ===============================
+// 💾 GUARDAR PRODUCTO
+// ===============================
+function guardar() {
+  const codigo = document.getElementById("codigo").value;
+  const nombre = document.getElementById("nombre").value;
+  const piezas = document.getElementById("piezas").value;
+
+  if (!nombre || !piezas) {
+    alert("Completa nombre y piezas");
     return;
   }
 
-  try {
-    await fetch(`${API}/guardar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        codigo: codigo.value,
-        nombre: nombre.value,
-        piezas: parseInt(piezas.value || 0)
-      })
-    });
-
-    alert("✅ Producto guardado");
-    piezas.value = "";
-  } catch (err) {
+  fetch(`${API_URL}/faltantes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      codigo,
+      nombre,
+      piezas
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert("✅ Guardado correctamente");
+    limpiarCampos();
+    verFaltantes();
+  })
+  .catch(err => {
     alert("❌ Error al guardar");
-    console.error(err);
-  }
+    console.log(err);
+  });
 }
 
-// ================================
-// BUSCAR POR NOMBRE
-// ================================
-async function buscarNombre(txt) {
-  if (!txt) {
-    lista.innerHTML = "";
+
+// ===============================
+// 📦 VER FALTANTES
+// ===============================
+function verFaltantes() {
+  fetch(`${API_URL}/faltantes`)
+    .then(res => res.json())
+    .then(data => {
+      const lista = document.getElementById("lista");
+      lista.innerHTML = "";
+
+      data.forEach(item => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <strong>${item.nombre}</strong><br>
+          Código: ${item.codigo || "N/A"}<br>
+          Piezas: ${item.piezas}
+        `;
+        lista.appendChild(li);
+      });
+    })
+    .catch(err => {
+      console.log("Error:", err);
+    });
+}
+
+
+// ===============================
+// 🔎 BUSCAR POR CÓDIGO
+// ===============================
+function buscarCodigo() {
+  const codigo = document.getElementById("codigo").value;
+
+  if (!codigo) {
+    alert("Escribe un código");
     return;
   }
 
-  try {
-    const r = await fetch(`${API}/buscar_nombre/${txt}`);
-    if (!r.ok) throw new Error("Error búsqueda");
+  fetch(`${API_URL}/faltantes`)
+    .then(res => res.json())
+    .then(data => {
+      const encontrado = data.find(p => p.codigo === codigo);
 
-    const data = await r.json();
-    lista.innerHTML = "";
-
-    data.forEach(p => {
-      const li = document.createElement("li");
-      li.textContent = `${p[1]} (${p[2]})`;
-      li.onclick = () => {
-        codigo.value = p[0];
-        nombre.value = p[1];
-        piezas.value = p[2];
-        lista.innerHTML = "";
-      };
-      lista.appendChild(li);
+      if (encontrado) {
+        document.getElementById("nombre").value = encontrado.nombre;
+        document.getElementById("piezas").value = encontrado.piezas;
+      } else {
+        alert("Producto no encontrado");
+      }
     });
-  } catch (err) {
-    console.error("Error buscando nombre", err);
-  }
 }
 
-// ================================
-// 🌙 TEMA OSCURO
-// ================================
+
+// ===============================
+// 🔍 BUSCAR POR NOMBRE
+// ===============================
+function buscarNombre(texto) {
+  fetch(`${API_URL}/faltantes`)
+    .then(res => res.json())
+    .then(data => {
+      const lista = document.getElementById("lista");
+      lista.innerHTML = "";
+
+      const filtrados = data.filter(item =>
+        item.nombre.toLowerCase().includes(texto.toLowerCase())
+      );
+
+      filtrados.forEach(item => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <strong>${item.nombre}</strong><br>
+          Código: ${item.codigo || "N/A"}<br>
+          Piezas: ${item.piezas}
+        `;
+        lista.appendChild(li);
+      });
+    });
+}
+
+
+// ===============================
+// 🌙 MODO OSCURO
+// ===============================
 function toggleTheme() {
   document.body.classList.toggle("dark");
-  localStorage.setItem(
-    "theme",
-    document.body.classList.contains("dark") ? "dark" : "light"
-  );
 }
 
-// CARGAR TEMA GUARDADO / SISTEMA
-(() => {
-  const saved = localStorage.getItem("theme");
-  const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  if (saved === "dark" || (!saved && systemDark)) {
-    document.body.classList.add("dark");
-  }
-})();
+// ===============================
+// 🧹 LIMPIAR CAMPOS
+// ===============================
+function limpiarCampos() {
+  document.getElementById("codigo").value = "";
+  document.getElementById("nombre").value = "";
+  document.getElementById("piezas").value = "";
+}
+
+
+// Cargar lista al abrir
+verFaltantes();
