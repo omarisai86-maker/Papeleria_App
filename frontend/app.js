@@ -1,8 +1,8 @@
-// ================================
+// // ================================
 // CONFIGURACIÓN
 // ================================
-// ⚠️ CAMBIA ESTA URL POR TU BACKEND EN PRODUCCIÓN (HTTPS)
-const API = "https://papeleria-app.onrender.com";
+const API = "https://papeleria-app-vf6w.onrender.com";
+
 
 // ================================
 // ELEMENTOS

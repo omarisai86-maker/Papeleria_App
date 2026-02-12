@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
+import os
 
 app = FastAPI()
 
+# ==========================
+# CONFIGURAR CORS
+# ==========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -12,12 +16,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ==========================
+# RUTA CORRECTA DE BASE DE DATOS
+# ==========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "productos.db")
+
+
+# ==========================
+# CREAR TABLA AUTOMÁTICAMENTE
+# ==========================
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS productos (
+            codigo TEXT PRIMARY KEY,
+            nombre TEXT,
+            piezas INTEGER
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+# ⚠️ ESTA LÍNEA ES CLAVE
+init_db()
+
+
 def get_db():
-    return sqlite3.connect("productos.db", check_same_thread=False)
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
+
+
+# ==========================
+# RUTAS
+# ==========================
 
 @app.get("/")
 def home():
     return {"status": "API Papelería OK"}
+
 
 @app.get("/buscar_codigo/{codigo}")
 def buscar_codigo(codigo: str):
@@ -31,12 +69,9 @@ def buscar_codigo(codigo: str):
     conn.close()
 
     if r:
-        return {
-            "codigo": r[0],
-            "nombre": r[1],
-            "piezas": r[2]
-        }
+        return {"codigo": r[0], "nombre": r[1], "piezas": r[2]}
     return {}
+
 
 @app.get("/buscar_nombre/{texto}")
 def buscar_nombre(texto: str):
@@ -54,6 +89,7 @@ def buscar_nombre(texto: str):
         for r in rows
     ]
 
+
 @app.post("/guardar")
 def guardar(p: dict):
     conn = get_db()
@@ -61,12 +97,7 @@ def guardar(p: dict):
     c.execute("""
         INSERT OR REPLACE INTO productos (codigo, nombre, piezas)
         VALUES (?, ?, ?)
-    """, (
-        p.get("codigo"),
-        p.get("nombre"),
-        int(p.get("piezas", 0))
-    ))
+    """, (p["codigo"], p["nombre"], p["piezas"]))
     conn.commit()
     conn.close()
-
     return {"ok": True}
