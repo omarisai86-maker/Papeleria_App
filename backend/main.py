@@ -6,7 +6,7 @@ import os
 app = FastAPI()
 
 # ==========================
-# CONFIGURAR CORS
+# CORS (permite conexión desde tu frontend)
 # ==========================
 app.add_middleware(
     CORSMiddleware,
@@ -17,15 +17,10 @@ app.add_middleware(
 )
 
 # ==========================
-# RUTA CORRECTA DE BASE DE DATOS
+# BASE DE DATOS
 # ==========================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "productos.db")
+DB_PATH = os.path.join(os.getcwd(), "productos.db")
 
-
-# ==========================
-# CREAR TABLA AUTOMÁTICAMENTE
-# ==========================
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -39,24 +34,21 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-# ⚠️ ESTA LÍNEA ES CLAVE
 init_db()
-
 
 def get_db():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
-
 # ==========================
-# RUTAS
+# RUTA PRINCIPAL
 # ==========================
-
 @app.get("/")
 def home():
     return {"status": "API Papelería OK"}
 
-
+# ==========================
+# BUSCAR POR CÓDIGO
+# ==========================
 @app.get("/buscar_codigo/{codigo}")
 def buscar_codigo(codigo: str):
     conn = get_db()
@@ -72,7 +64,9 @@ def buscar_codigo(codigo: str):
         return {"codigo": r[0], "nombre": r[1], "piezas": r[2]}
     return {}
 
-
+# ==========================
+# BUSCAR POR NOMBRE
+# ==========================
 @app.get("/buscar_nombre/{texto}")
 def buscar_nombre(texto: str):
     conn = get_db()
@@ -89,7 +83,9 @@ def buscar_nombre(texto: str):
         for r in rows
     ]
 
-
+# ==========================
+# GUARDAR PRODUCTO
+# ==========================
 @app.post("/guardar")
 def guardar(p: dict):
     conn = get_db()
@@ -100,4 +96,26 @@ def guardar(p: dict):
     """, (p["codigo"], p["nombre"], p["piezas"]))
     conn.commit()
     conn.close()
+
     return {"ok": True}
+
+# ==========================
+# LISTA DE FALTANTES
+# ==========================
+@app.get("/faltantes")
+def faltantes():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT codigo, nombre, piezas
+        FROM productos
+        WHERE piezas <= 5
+        ORDER BY piezas ASC
+    """)
+    rows = c.fetchall()
+    conn.close()
+
+    return [
+        {"codigo": r[0], "nombre": r[1], "piezas": r[2]}
+        for r in rows
+    ]
