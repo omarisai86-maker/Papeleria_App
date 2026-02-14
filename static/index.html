@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Papelería PRO</title>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2c3e50">
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body { font-family: Arial; margin: 20px; }
+input, button { padding: 8px; margin: 5px; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+th { background: #f0f0f0; }
+#reader { width: 300px; margin-top: 20px; }
+</style>
+
+</head>
+<body>
+
+<h2>📦 Lista de Faltantes</h2>
+
+<button onclick="iniciarCamara()">📷 Escanear</button>
+<div id="reader"></div>
+
+<h3>Agregar Producto</h3>
+
+<input id="codigo" placeholder="Código" onblur="buscarNombre()">
+<input id="nombre" placeholder="Nombre">
+<input id="compra" type="number" placeholder="Precio Compra">
+<input id="porcentaje" type="number" placeholder="% Ganancia">
+<input id="venta" type="number" placeholder="Precio Venta" readonly>
+<input id="existente" type="number" placeholder="Cantidad existente">
+<input id="comprar_cantidad" type="number" placeholder="Cantidad a comprar">
+
+<button onclick="agregar()">Agregar</button>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Código</th>
+<th>Nombre</th>
+<th>Compra</th>
+<th>%</th>
+<th>Venta</th>
+<th>Existente</th>
+<th>A Comprar</th>
+<th>Acción</th>
+</tr>
+</thead>
+<tbody id="tabla"></tbody>
+</table>
+
+<h2>📊 Historial de Compras</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Código</th>
+<th>Nombre</th>
+<th>Compra</th>
+<th>%</th>
+<th>Venta</th>
+<th>Existente</th>
+<th>A Comprar</th>
+</tr>
+</thead>
+<tbody id="historial"></tbody>
+</table>
+
+<audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
+
+<script>
+
+async function buscarNombre() {
+    const codigoValor = codigo.value;
+    if (!codigoValor) return;
+
+    const res = await fetch(`/buscar_producto/${codigoValor}`);
+    const data = await res.json();
+
+    if (data.nombre) {
+        nombre.value = data.nombre;
+    }
+}
+
+async function cargar() {
+    const res = await fetch("/productos");
+    const data = await res.json();
+    tabla.innerHTML = "";
+
+    data.forEach(p => {
+        tabla.innerHTML += `
+        <tr>
+        <td>${p[0]}</td>
+        <td>${p[1]}</td>
+        <td>${p[2]}</td>
+        <td>${p[3]}</td>
+        <td>${p[4]}</td>
+        <td>${p[5]}</td>
+        <td>${p[6]}</td>
+        <td>${p[7]}</td>
+        <td><button onclick="comprar(${p[0]})">🛒 Comprar</button></td>
+        </tr>`;
+    });
+}
+
+async function cargarHistorial() {
+    const res = await fetch("/historial");
+    const data = await res.json();
+    historial.innerHTML = "";
+
+    data.forEach(p => {
+        historial.innerHTML += `
+        <tr>
+        <td>${p[0]}</td>
+        <td>${p[1]}</td>
+        <td>${p[2]}</td>
+        <td>${p[3]}</td>
+        <td>${p[4]}</td>
+        <td>${p[5]}</td>
+        <td>${p[6]}</td>
+        <td>${p[7]}</td>
+        </tr>`;
+    });
+}
+
+async function agregar() {
+    const compraValor = parseFloat(compra.value);
+    const porcentajeValor = parseFloat(porcentaje.value);
+    const ventaValor = compraValor + (compraValor * porcentajeValor / 100);
+
+    await fetch("/productos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            codigo: codigo.value,
+            nombre: nombre.value,
+            compra: compraValor,
+            porcentaje: porcentajeValor,
+            venta: ventaValor,
+            cantidad_existente: parseInt(existente.value),
+            cantidad_comprar: parseInt(comprar_cantidad.value)
+        })
+    });
+
+    cargar();
+}
+
+async function comprar(id) {
+    await fetch(`/productos/${id}`, { method: "DELETE" });
+    cargar();
+    cargarHistorial();
+}
+
+document.getElementById("compra").addEventListener("input", calcular);
+document.getElementById("porcentaje").addEventListener("input", calcular);
+
+function calcular() {
+    const compraValor = parseFloat(compra.value);
+    const porcentajeValor = parseFloat(porcentaje.value);
+
+    if (compraValor && porcentajeValor) {
+        venta.value = compraValor + (compraValor * porcentajeValor / 100);
+    }
+}
+
+let scanner;
+
+function iniciarCamara() {
+    scanner = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(devices => {
+
+        let camaraTrasera = devices.find(device =>
+            device.label.toLowerCase().includes("back") ||
+            device.label.toLowerCase().includes("rear") ||
+            device.label.toLowerCase().includes("environment")
+        );
+
+        let cameraId = camaraTrasera ? camaraTrasera.id : devices[devices.length - 1].id;
+
+        scanner.start(
+            cameraId,
+            { fps: 10, qrbox: 250 },
+            code => {
+                codigo.value = code;
+                document.getElementById("beep").play();
+                scanner.stop();
+                buscarNombre();
+            }
+        );
+    });
+}
+
+cargar();
+cargarHistorial();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js');
+}
+
+</script>
+
+</body>
+</html>
