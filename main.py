@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import sqlite3
 from openpyxl import load_workbook
+import os
 
 app = FastAPI()
 
@@ -54,27 +56,34 @@ def init_db():
 init_db()
 
 # =========================
-# CARGAR EXCEL
+# CARGAR EXCEL AL INICIAR
 # =========================
 
-def cargar_productos_excel():
+PRODUCTOS_EXCEL = {}
+
+def cargar_excel():
+    global PRODUCTOS_EXCEL
     try:
-        wb = load_workbook("productos.xlsx")
+        ruta = os.path.join(os.getcwd(), "productos.xlsx")
+        wb = load_workbook(ruta)
         sheet = wb.active
-        productos = {}
 
         for row in sheet.iter_rows(min_row=2, values_only=True):
             codigo, nombre = row
-            productos[str(codigo)] = nombre
+            if codigo is not None:
+                PRODUCTOS_EXCEL[str(codigo).strip()] = str(nombre).strip()
 
-        return productos
-    except:
-        return {}
+        print("Productos cargados:", len(PRODUCTOS_EXCEL))
+
+    except Exception as e:
+        print("Error cargando Excel:", e)
+
+cargar_excel()
 
 @app.get("/buscar_producto/{codigo}")
 def buscar_producto(codigo: str):
-    productos = cargar_productos_excel()
-    nombre = productos.get(codigo, "")
+    codigo = codigo.strip()
+    nombre = PRODUCTOS_EXCEL.get(codigo, "")
     return {"nombre": nombre}
 
 # =========================
@@ -142,6 +151,19 @@ def obtener_historial():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM historial")
     datos = cursor.fetchall()
+    conn.close()
+    return datos
+
+# =========================
+# FRONTEND
+# =========================
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def home():
+    return FileResponse("static/index.html")
+
     conn.close()
     return datos
 
